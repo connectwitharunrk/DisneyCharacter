@@ -1,5 +1,6 @@
 package com.example.disneyapp.data.repository
 
+import com.example.disneyapp.core.util.Resource
 import com.example.disneyapp.data.remote.ApiService
 import com.example.disneyapp.domain.model.Character
 import com.example.disneyapp.domain.repository.CharacterRepository
@@ -13,14 +14,18 @@ import javax.inject.Inject
 class CharacterRepositoryImpl @Inject constructor(
     private val apiService: ApiService
 ): CharacterRepository {
-    override suspend fun getCharacters(): Flow<List<Character>> = flow {
-         val response = apiService.getCharacters()
+    override suspend fun getCharacters(): Flow<Resource<List<Character>>> = flow {
+        emit(Resource.Loading)
+        val response = apiService.getCharacters()
         if (response.isSuccessful) {
-            response.body()?.let {
-                emit(it.data.map { dto -> dto.toDomain() })
+            val body = response.body()
+            if(body != null) {
+                emit(Resource.Success(body.data.map { it.toDomain() }))
+            } else {
+                emit(Resource.Error("No data found"))
             }
         } else {
-            throw Exception("Error fetching characters")
+            emit(Resource.Error("Something went wrong"))
         }
     }.flowOn(Dispatchers.IO)
 }
